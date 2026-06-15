@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bitcoin Cycle Analysis</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Space+Mono:wght@400;700&display=swap');
+
+  :root {
+    --bg: #0a0e1a;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1f2d45;
+    --orange: #f7931a;
+    --orange-dim: rgba(247,147,26,0.12);
+    --orange-glow: rgba(247,147,26,0.25);
+    --teal: #00d4aa;
+    --teal-dim: rgba(0,212,170,0.1);
+    --red: #ff5b5b;
+    --red-dim: rgba(255,91,91,0.1);
+    --text: #e8eaf0;
+    --muted: #8892a4;
+    --heading: #ffffff;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 15px;
+    line-height: 1.7;
+  }
+
+  /* ── Header ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 56px 48px 40px;
+    position: relative;
+    overflow: hidden;
+  }
+  header::before {
+    content: '₿';
+    position: absolute;
+    right: 40px; top: 10px;
+    font-size: 220px;
+    color: var(--orange);
+    opacity: 0.04;
+    font-family: 'Space Mono', monospace;
+    line-height: 1;
+    pointer-events: none;
+  }
+  .eyebrow {
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 14px;
+  }
+  header h1 {
+    font-size: clamp(28px, 5vw, 48px);
+    font-weight: 700;
+    color: var(--heading);
+    letter-spacing: -0.02em;
+    line-height: 1.1;
+    max-width: 640px;
+  }
+  header h1 span { color: var(--orange); }
+  .subtitle {
+    margin-top: 14px;
+    color: var(--muted);
+    font-size: 14px;
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── Layout ── */
+  main { max-width: 1000px; margin: 0 auto; padding: 48px 32px 80px; }
+
+  /* ── Section ── */
+  section { margin-bottom: 64px; }
+  .section-label {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 10px;
+  }
+  section h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--heading);
+    margin-bottom: 20px;
+    padding-bottom: 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  p { color: var(--text); margin-bottom: 14px; }
+
+  /* ── Answer box ── */
+  .answer-box {
+    background: var(--orange-dim);
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .answer-box .big {
+    font-family: 'Space Mono', monospace;
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--orange);
+    white-space: nowrap;
+  }
+  .answer-box .desc { color: var(--muted); font-size: 14px; }
+
+  /* ── Tables ── */
+  .table-wrap { overflow-x: auto; margin: 20px 0; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+  }
+  thead tr {
+    background: var(--surface2);
+  }
+  thead th {
+    font-family: 'Space Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr {
+    border-bottom: 1px solid var(--border);
+    transition: background 0.15s;
+  }
+  tbody tr:hover { background: var(--surface2); }
+  td {
+    padding: 13px 16px;
+    vertical-align: middle;
+  }
+  td.mono {
+    font-family: 'Space Mono', monospace;
+    font-size: 12.5px;
+  }
+  td.highlight {
+    color: var(--orange);
+    font-weight: 600;
+    font-family: 'Space Mono', monospace;
+  }
+  td.green { color: var(--teal); font-weight: 600; }
+  td.red { color: var(--red); font-weight: 600; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+  }
+  .badge.after { background: var(--red-dim); color: var(--red); }
+  .badge.unknown { background: var(--teal-dim); color: var(--teal); }
+
+  /* ── Stat grid ── */
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px;
+  }
+  .stat-card .label {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+  }
+  .stat-card .value {
+    font-size: 26px;
+    font-weight: 700;
+    color: var(--orange);
+    font-family: 'Space Mono', monospace;
+    line-height: 1;
+  }
+  .stat-card .sub {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── Timeline bar ── */
+  .timeline {
+    margin: 28px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .tl-row { display: flex; align-items: center; gap: 14px; }
+  .tl-label {
+    width: 130px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+    text-align: right;
+  }
+  .tl-bar-wrap { flex: 1; background: var(--surface2); border-radius: 4px; height: 20px; overflow: hidden; }
+  .tl-bar {
+    height: 100%;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+    font-size: 11px;
+    font-family: 'Space Mono', monospace;
+    font-weight: 700;
+    color: var(--bg);
+    transition: width 0.4s ease;
+  }
+  .tl-bar.c1 { background: #f7931a; width: 77%; }
+  .tl-bar.c2 { background: #e8a838; width: 87%; }
+  .tl-bar.c3 { background: #d4bf60; width: 92%; }
+
+  /* ── Prediction card ── */
+  .pred-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin: 24px 0;
+  }
+  @media (max-width: 600px) { .pred-grid { grid-template-columns: 1fr; } }
+  .pred-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .pred-card .method {
+    font-size: 10px;
+    font-family: 'Space Mono', monospace;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--teal);
+    margin-bottom: 8px;
+  }
+  .pred-card .date {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--heading);
+    margin-bottom: 4px;
+  }
+  .pred-card .calc {
+    font-size: 11px;
+    color: var(--muted);
+    font-family: 'Space Mono', monospace;
+  }
+
+  /* ── Price scenarios ── */
+  .scenario-table { margin: 20px 0; }
+  .scenario-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .scenario-row:last-child { border-bottom: none; }
+  .scenario-name { width: 200px; flex-shrink: 0; font-size: 13px; }
+  .scenario-bar-wrap { flex: 1; background: var(--surface2); border-radius: 4px; height: 10px; }
+  .scenario-bar { height: 100%; border-radius: 4px; background: var(--orange); opacity: 0.7; }
+  .scenario-price {
+    width: 90px;
+    text-align: right;
+    font-family: 'Space Mono', monospace;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+  }
+  .scenario-pct {
+    width: 50px;
+    text-align: right;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--red);
+    flex-shrink: 0;
+  }
+
+  /* ── Final box ── */
+  .final-box {
+    background: linear-gradient(135deg, var(--orange-dim) 0%, var(--teal-dim) 100%);
+    border: 1px solid var(--orange);
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+  }
+  .final-box .ftitle {
+    font-size: 12px;
+    font-family: 'Space Mono', monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.2em;
+    color: var(--orange);
+    margin-bottom: 12px;
+  }
+  .final-box .fdate {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--heading);
+    margin-bottom: 6px;
+  }
+  .final-box .fprice {
+    font-size: 20px;
+    font-family: 'Space Mono', monospace;
+    color: var(--teal);
+    margin-bottom: 20px;
+  }
+  .disclaimer {
+    margin-top: 40px;
+    padding: 16px 20px;
+    background: var(--surface);
+    border-left: 3px solid var(--muted);
+    border-radius: 4px;
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* ── Phase list ── */
+  .phase-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin: 16px 0;
+  }
+  .phase-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .phase-num {
+    width: 28px; height: 28px;
+    background: var(--orange-dim);
+    border: 1px solid var(--orange);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+    font-family: 'Space Mono', monospace;
+    font-size: 11px;
+    color: var(--orange);
+    margin-top: 2px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div style="font-size:13px;color:var(--muted);margin-bottom:20px;padding:12px 16px;background:var(--surface);border-left:3px solid var(--orange);border-radius:4px;font-family:'Space Grotesk',sans-serif;">
+    These are AI-generated responses to my questions about Bitcoin market cycles.
+  </div>
+  <div class="eyebrow">Research Report · June 2026</div>
+  <h1>Bitcoin <span>Cycle</span> Analysis</h1>
+  <div class="subtitle">Halvings · Midpoints · Cycle Lows · Next Bottom Prediction</div>
+</header>
+
+<main>
+
+  <!-- ── Section 1 ── -->
+  <section>
+    <div class="section-label">Section 01</div>
+    <h2>How Long Is the Bitcoin Cycle?</h2>
+    <p>Bitcoin's primary market cycle is defined by its <strong>halving event</strong> — a hard-coded reduction of the block reward by 50%, occurring approximately every 210,000 blocks.</p>
+
+    <div class="answer-box">
+      <div class="big">~1,458</div>
+      <div>
+        <div style="color:var(--heading);font-weight:600;margin-bottom:4px;">days per cycle</div>
+        <div class="desc">Approximately 4 years · Defined by halving-to-halving interval</div>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Halving</th>
+            <th>Date</th>
+            <th>Block Reward After</th>
+            <th>BTC Price (Day Of)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>1st</td><td class="mono">Nov 28, 2012</td><td class="highlight">25 BTC</td><td class="mono">$12.35</td></tr>
+          <tr><td>2nd</td><td class="mono">Jul 9, 2016</td><td class="highlight">12.5 BTC</td><td class="mono">$650.63</td></tr>
+          <tr><td>3rd</td><td class="mono">May 11, 2020</td><td class="highlight">6.25 BTC</td><td class="mono">$8,821</td></tr>
+          <tr><td>4th</td><td class="mono">Apr 19, 2024</td><td class="highlight">3.125 BTC</td><td class="mono">$64,969</td></tr>
+          <tr><td style="color:var(--muted)">5th (est.)</td><td class="mono" style="color:var(--muted)">~Apr 2028</td><td class="mono" style="color:var(--muted)">1.5625 BTC</td><td class="mono" style="color:var(--muted)">—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p style="margin-top:16px;">Each cycle typically follows four phases:</p>
+    <ul class="phase-list">
+      <li><div class="phase-num">1</div><div><strong>Bottom formation</strong> — around the halving event</div></li>
+      <li><div class="phase-num">2</div><div><strong>Uptrend</strong> — 6–18 months post-halving, driven by supply shock</div></li>
+      <li><div class="phase-num">3</div><div><strong>Peak formation</strong> — new all-time high, euphoria phase</div></li>
+      <li><div class="phase-num">4</div><div><strong>Decline &amp; correction</strong> — bear market lasting 1–2 years</div></li>
+    </ul>
+  </section>
+
+  <!-- ── Section 2 ── -->
+  <section>
+    <div class="section-label">Section 02</div>
+    <h2>Midpoint Date of Each Cycle</h2>
+    <p>The midpoint is calculated as the exact halfway mark between consecutive halving dates.</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cycle</th>
+            <th>Start (Halving)</th>
+            <th>End (Next Halving)</th>
+            <th>Days</th>
+            <th>Midpoint Date</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cycle 1→2</td>
+            <td class="mono">Nov 28, 2012</td>
+            <td class="mono">Jul 9, 2016</td>
+            <td class="mono">1,319</td>
+            <td class="highlight">Sep 18, 2014</td>
+          </tr>
+          <tr>
+            <td>Cycle 2→3</td>
+            <td class="mono">Jul 9, 2016</td>
+            <td class="mono">May 11, 2020</td>
+            <td class="mono">1,401</td>
+            <td class="highlight">Jun 9, 2018</td>
+          </tr>
+          <tr>
+            <td>Cycle 3→4</td>
+            <td class="mono">May 11, 2020</td>
+            <td class="mono">Apr 19, 2024</td>
+            <td class="mono">1,439</td>
+            <td class="highlight">Apr 30, 2022</td>
+          </tr>
+          <tr>
+            <td>Cycle 4→5</td>
+            <td class="mono">Apr 19, 2024</td>
+            <td class="mono">~Apr 17, 2028</td>
+            <td class="mono">1,459</td>
+            <td class="highlight">Apr 18, 2026</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p style="font-size:13px;color:var(--muted);">As of June 14, 2026, we are approximately <strong style="color:var(--orange)">57 days past</strong> the Cycle 4→5 midpoint (April 18, 2026).</p>
+  </section>
+
+  <!-- ── Section 3 ── -->
+  <section>
+    <div class="section-label">Section 03</div>
+    <h2>Did the Cycle Low Occur Before the Midpoint?</h2>
+    <p>Comparing the midpoint date against the confirmed cycle low date in each completed cycle:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>Cycle</th>
+            <th>Midpoint</th>
+            <th>Cycle Low Date</th>
+            <th>Low Price</th>
+            <th>Before Midpoint?</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Cycle 1 (2012→2016)</td>
+            <td class="mono">Sep 18, 2014</td>
+            <td class="mono">Jan 14, 2015</td>
+            <td class="mono">$164</td>
+            <td><span class="badge after">❌ After</span></td>
+          </tr>
+          <tr>
+            <td>Cycle 2 (2016→2020)</td>
+            <td class="mono">Jun 9, 2018</td>
+            <td class="mono">Dec 15, 2018</td>
+            <td class="mono">$3,148</td>
+            <td><span class="badge after">❌ After</span></td>
+          </tr>
+          <tr>
+            <td>Cycle 3 (2020→2024)</td>
+            <td class="mono">Apr 30, 2022</td>
+            <td class="mono">Nov 21, 2022</td>
+            <td class="mono">$15,476</td>
+            <td><span class="badge after">❌ After</span></td>
+          </tr>
+          <tr>
+            <td>Cycle 4 (2024→2028)</td>
+            <td class="mono">Apr 18, 2026</td>
+            <td class="mono">In progress</td>
+            <td class="mono">?</td>
+            <td><span class="badge unknown">⏳ TBD</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:20px;margin-top:20px;">
+      <div style="font-size:12px;color:var(--orange);font-family:'Space Mono',monospace;text-transform:uppercase;letter-spacing:0.15em;margin-bottom:8px;">Key Finding</div>
+      <p style="margin:0;">In all three completed cycles, the cycle low was reached <strong>after</strong> the midpoint — consistently in the second half of the cycle. The bottom has never appeared early.</p>
+    </div>
+  </section>
+
+  <!-- ── Section 4 ── -->
+  <section>
+    <div class="section-label">Section 04</div>
+    <h2>Predicting the Next Cycle Low</h2>
+
+    <div class="stat-grid">
+      <div class="stat-card">
+        <div class="label">Cycle 1: Halving → Low</div>
+        <div class="value">777</div>
+        <div class="sub">days · Low at $164</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Cycle 2: Halving → Low</div>
+        <div class="value">889</div>
+        <div class="sub">days · Low at $3,148</div>
+      </div>
+      <div class="stat-card">
+        <div class="label">Cycle 3: Halving → Low</div>
+        <div class="value">924</div>
+        <div class="sub">days · Low at $15,476</div>
+      </div>
+      <div class="stat-card" style="border-color:var(--orange);">
+        <div class="label">Average (3 cycles)</div>
+        <div class="value">863</div>
+        <div class="sub">days from halving to low</div>
+      </div>
+    </div>
+
+    <p>Days from halving to cycle low, visualized — showing the consistent trend of lengthening cycles:</p>
+    <div class="timeline">
+      <div class="tl-row">
+        <div class="tl-label">Cycle 1</div>
+        <div class="tl-bar-wrap"><div class="tl-bar c1">777d</div></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-label">Cycle 2</div>
+        <div class="tl-bar-wrap"><div class="tl-bar c2">889d</div></div>
+      </div>
+      <div class="tl-row">
+        <div class="tl-label">Cycle 3</div>
+        <div class="tl-bar-wrap"><div class="tl-bar c3">924d</div></div>
+      </div>
+    </div>
+
+    <p style="margin-top:24px;">Using two independent approaches, both converging on the same window:</p>
+    <div class="pred-grid">
+      <div class="pred-card">
+        <div class="method">Approach 1 · ATH-Based</div>
+        <div class="date">~Oct 24, 2026</div>
+        <div class="calc">ATH Oct 6, 2025 + avg 383 days</div>
+      </div>
+      <div class="pred-card">
+        <div class="method">Approach 2 · Halving-Based</div>
+        <div class="date">~Oct 29, 2026</div>
+        <div class="calc">Halving Apr 19, 2024 + avg 863 days</div>
+      </div>
+    </div>
+
+    <p>Projected price scenarios, based on ATH of <strong>$126,198</strong> (Oct 6, 2025):</p>
+    <div class="scenario-table">
+      <div class="scenario-row">
+        <div class="scenario-name" style="font-size:13px;">Historical avg drawdown</div>
+        <div class="scenario-bar-wrap"><div class="scenario-bar" style="width:82%;"></div></div>
+        <div class="scenario-pct">−82%</div>
+        <div class="scenario-price">~$22,700</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-name" style="font-size:13px;">Moderate (matches Cycle 3)</div>
+        <div class="scenario-bar-wrap"><div class="scenario-bar" style="width:77%;opacity:0.6;"></div></div>
+        <div class="scenario-pct">−77%</div>
+        <div class="scenario-price">~$29,000</div>
+      </div>
+      <div class="scenario-row">
+        <div class="scenario-name" style="font-size:13px;">ETF-supported floor</div>
+        <div class="scenario-bar-wrap"><div class="scenario-bar" style="width:60%;opacity:0.4;"></div></div>
+        <div class="scenario-pct">−60%</div>
+        <div class="scenario-price">~$50,500</div>
+      </div>
+    </div>
+    <p style="font-size:12px;color:var(--muted);">Note: Each successive cycle has shown a shallower drawdown. The current cycle's maximum decline to date is ~52%, suggesting the ETF-supported scenario may be more likely than the historical average.</p>
+  </section>
+
+  <!-- ── Final Summary ── -->
+  <section>
+    <div class="section-label">Summary</div>
+    <h2>Bottom Line Prediction</h2>
+    <div class="final-box">
+      <div class="ftitle">Projected Cycle 4 Low</div>
+      <div class="fdate">October – November 2026</div>
+      <div class="fprice">Price Range: ~$23,000 – $50,500</div>
+      <p style="color:var(--muted);font-size:13px;max-width:500px;margin:0 auto;">Both the ATH-based and halving-based approaches converge on the same timeframe. The ETF era and institutional adoption may compress the drawdown relative to historical norms.</p>
+    </div>
+
+    <div class="disclaimer">
+      <strong>⚠️ Personal Note:</strong> I am not a financial advisor or investment professional. All views expressed here are my own personal analysis based on publicly available data. <strong>All investments are made at your own risk.</strong> Please do your own research and consult a licensed financial professional before making any investment decisions. Past performance does not guarantee future results.
+    </div>
+  </section>
+
+</main>
+
+</body>
+</html>
